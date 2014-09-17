@@ -44,7 +44,9 @@
 #define SIO_REG_DEVID		0x20	/* Device ID (2 bytes) */
 #define SIO_REG_DEVREV		0x22	/* Device revision */
 #define SIO_REG_MANID		0x23	/* Fintek ID (2 bytes) */
+#define SIO_REG_CLOCK_SEL	0x26	/* Clock Select */
 #define SIO_REG_ROM_ADDR_SEL	0x27	/* ROM address select */
+#define SIO_REG_TSI_LEVEL	0x28	/* TSI Level Select */
 #define SIO_REG_MFUNCT1		0x29	/* Multi function select 1 */
 #define SIO_REG_MFUNCT2		0x2a	/* Multi function select 2 */
 #define SIO_REG_MFUNCT3		0x2b	/* Multi function select 3 */
@@ -59,6 +61,7 @@
 #define SIO_F71869A_ID		0x1007	/* Chipset ID */
 #define SIO_F71882_ID		0x0541	/* Chipset ID */
 #define SIO_F71889_ID		0x0723	/* Chipset ID */
+#define SIO_F81803_ID		0x1210	/* Chipset ID */
 
 #define F71808FG_REG_WDO_CONF		0xf0
 #define F71808FG_REG_WDT_CONF		0xf5
@@ -66,7 +69,7 @@
 
 #define F71808FG_FLAG_WDOUT_EN		7
 
-#define F71808FG_FLAG_WDTMOUT_STS	5
+#define F71808FG_FLAG_WDTMOUT_STS	6
 #define F71808FG_FLAG_WD_EN		5
 #define F71808FG_FLAG_WD_PULSE		4
 #define F71808FG_FLAG_WD_UNIT		3
@@ -112,7 +115,7 @@ module_param(start_withtimeout, uint, 0);
 MODULE_PARM_DESC(start_withtimeout, "Start watchdog timer on module load with"
 	" given initial timeout. Zero (default) disables this feature.");
 
-enum chips { f71808fg, f71858fg, f71862fg, f71869, f71882fg, f71889fg };
+enum chips { f71808fg, f71858fg, f71862fg, f71869, f71882fg, f71889fg, f81803 };
 
 static const char *f71808e_names[] = {
 	"f71808fg",
@@ -121,6 +124,7 @@ static const char *f71808e_names[] = {
 	"f71869",
 	"f71882fg",
 	"f71889fg",
+	"f81803",
 };
 
 /* Super-I/O Function prototypes */
@@ -358,6 +362,15 @@ static int watchdog_start(void)
 		/* set pin 40 to WDTRST# */
 		superio_outb(watchdog.sioaddr, SIO_REG_MFUNCT3,
 			superio_inb(watchdog.sioaddr, SIO_REG_MFUNCT3) & 0xcf);
+		break;
+
+	case f81803:
+		/* Clear bit-3 in SIO_REG_CLOCK_SEL so we can access
+		   SIO_REG_TSI_LEVEL */
+		superio_clear_bit(watchdog.sioaddr, SIO_REG_CLOCK_SEL, 3);
+		/* Set pin 27 to GPIO05/WDTRST#, then to WDTRST# */
+		superio_clear_bit(watchdog.sioaddr, SIO_REG_TSI_LEVEL, 7);
+		superio_clear_bit(watchdog.sioaddr, SIO_REG_TSI_LEVEL, 5);
 		break;
 
 	default:
@@ -770,6 +783,9 @@ static int __init f71808e_find(int sioaddr)
 		/* Confirmed (by datasheet) not to have a watchdog. */
 		err = -ENODEV;
 		goto exit;
+	case SIO_F81803_ID:
+		watchdog.type = f81803;
+		break;
 	default:
 		pr_info("Unrecognized Fintek device: %04x\n",
 			(unsigned int)devid);

@@ -122,6 +122,15 @@ int main(int argc, char **argv)
       exit(EXIT_FAILURE);
    }
 
+   /* Check if last boot is caused by watchdog */
+   if (ioctl(fd, WDIOC_GETSTATUS, &bootstatus) == 0) {
+      fprintf(stdout, "Last boot is caused by : %s\n",
+         (bootstatus != 0) ? "Watchdog" : "Power-On-Reset");
+   } else {
+      fprintf(stderr, "Error: Cannot read watchdog status\n");
+      exit(EXIT_FAILURE);
+   }
+
    /* There are two ways to kick the watchdog:
       - by writing any dummy value into watchdog device file, or
       - by using IOCTL WDIOC_KEEPALIVE

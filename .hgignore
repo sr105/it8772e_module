@@ -1,0 +1,17 @@
+syntax: glob
+*.ko
+watchdog_test
+*.ko.cmd
+*.mod.o.cmd
+.tmp_versions
+Module.symvers
+*.mod.o
+*.mod.c
+*.o
+*.o.cmd
+modules.order
+*~
+.*~
+.*.ko.cmd
+.*.mod.o.cmd
+.*.o.cmd

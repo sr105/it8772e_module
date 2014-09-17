@@ -2,10 +2,7 @@
 
 [ "$1" == "-x" ] && set -x && shift
 
-# Finds a path to a kernel directory that can be used to build
-# a module outside of the kernel tree. This is based on the
-# current version for a passed in linux-image metapackage.
-get_kdir() {
+get_version() {
     # Example input:
     local metapackage="linux-image-generic-lts-trusty"
 
@@ -17,9 +14,19 @@ get_kdir() {
     if ! echo $version | grep -qE '^([0-9]+\.){2}[0-9]+-[0-9]+$'; then
 	echo "version=$version"
 	# Run it again because apt-cache does something weird
-	# that prevents stderr redirection
+	# that prevents redirecting stderr to stdout
 	apt-cache policy $metapackage
-	exit 1
+	return 1
+    fi
+
+    echo $version
+}
+
+get_kdir() {
+    local version="$1"
+    if ! echo $version | grep -qE '^([0-9]+\.){2}[0-9]+-[0-9]+$'; then
+	echo "Invalid kernel package version: \"$version\""
+	return 1
     fi
 
     local dir=/usr/src/linux-headers-${version}-generic
@@ -54,8 +61,8 @@ get_kdir() {
     exit 1
 }
 
-get_kdir "$1"
+get_kdir "$1" || exit $?
 echo "KDIR=$KDIR"
-
 export KDIR
-make modules
+make modules || exit $?
+[ "$2" != "" ] && cp -f *.ko "$2"/lib/modules/"$1"-generic/kernel/drivers/watchdog/

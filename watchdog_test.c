@@ -154,8 +154,10 @@ int main(int argc, char **argv)
       case 'x':
          fprintf(stdout, "Goodbye !\n");
          break;
+      case '\n':
+         break;
       default:
-         fprintf(stdout, "Unknown command\n");
+         fprintf(stdout, "Unknown command: (0x%02x)\n", kick_watchdog);
          break;
       }
    } while (kick_watchdog != 'x');

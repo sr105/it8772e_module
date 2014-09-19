@@ -10,6 +10,8 @@ all: f71808e_wdt.ko watchdog_test partial_clean
 
 modules: f71808e_wdt.ko it87_wdt.ko partial_clean
 
+watchdog_test:
+
 f71808e_wdt.ko it87_wdt.ko:
 	$(MAKE) -C $(KDIR) SUBDIRS=$(PWD) modules
 

@@ -227,6 +227,7 @@ static inline void superio_outw(int val, int reg)
 static void wdt_update_timeout(void)
 {
 	unsigned char cfg = WDT_KRST;
+	unsigned char cfg_before = 0xFF;
 	int tm = timeout;
 
 	if (testmode)
@@ -240,7 +241,12 @@ static void wdt_update_timeout(void)
 	if (chip_type != IT8721_ID)
 		cfg |= WDT_PWROK;
 
+	cfg_before = superio_inb(WDTCFG);
 	superio_outb(cfg, WDTCFG);
+	pr_err("wdt_update_timeout: Config: in(%02x) out(%02x) in(%02x)\n",
+	       cfg_before, cfg, superio_inb(WDTCFG));
+	pr_err("wdt_update_timeout: Control: in(%02x)\n", superio_inb(WDTCTRL));
+
 	superio_outb(tm, WDTVALLSB);
 	if (max_units > 255)
 		superio_outb(tm>>8, WDTVALMSB);
@@ -274,8 +280,12 @@ static int wdt_start(void)
 	superio_select(GPIO);
 	if (test_bit(WDTS_USE_GP, &wdt_status))
 		superio_outb(WDT_GAMEPORT, WDTCTRL);
-	else
+	else {
+		unsigned char a = superio_inb(WDTCTRL);
 		superio_outb(WDT_CIRINT, WDTCTRL);
+		pr_err("wdt_start: Control: in(%02x) out(%02x) in(%02x)\n",
+		       a, WDT_CIRINT, superio_inb(WDTCTRL));
+	}
 	wdt_update_timeout();
 
 	superio_exit();
@@ -348,6 +358,20 @@ static int wdt_set_timeout(int t)
 static int wdt_get_status(int *status)
 {
 	*status = 0;
+	if (1) {
+		int ret = superio_enter();
+		if (ret)
+			return ret;
+
+		superio_select(GPIO);
+		pr_err("wdt_get_status: Control: in(%02x)\n", superio_inb(WDTCTRL));
+		if (superio_inb(WDTCTRL) & WDT_ZERO) {
+			superio_outb(0x00, WDTCTRL);
+			clear_bit(WDTS_TIMER_RUN, &wdt_status);
+			*status |= WDIOF_CARDRESET;
+		}
+		superio_exit();
+	}
 	if (testmode) {
 		int ret = superio_enter();
 		if (ret)
@@ -456,6 +480,7 @@ static ssize_t wdt_write(struct file *file, const char __user *buf,
 {
 	if (count) {
 		clear_bit(WDTS_EXPECTED, &wdt_status);
+		pr_err("wdt_write: wdt_keepalive\n");
 		wdt_keepalive();
 	}
 	if (!nowayout) {

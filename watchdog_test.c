@@ -122,15 +122,23 @@ int main(int argc, char **argv)
       exit(EXIT_FAILURE);
    }
 
-   /* Check if last boot is caused by watchdog */
-   if (ioctl(fd, WDIOC_GETSTATUS, &bootstatus) == 0) {
-      fprintf(stdout, "Last boot is caused by : %s\n",
-         (bootstatus != 0) ? "Watchdog" : "Power-On-Reset");
-   } else {
-      fprintf(stderr, "Error: Cannot read watchdog status\n");
-      exit(EXIT_FAILURE);
-   }
-
+   // test loop
+   write(fd, "w", 1);
+   fprintf(stdout, "Kick watchdog through writing over device file\n");
+   int n = 0;
+   do {
+     if (ioctl(fd, WDIOC_GETSTATUS, &bootstatus) == 0) {
+       //fprintf(stdout, "%2d: status: %04x\n", n, bootstatus);
+     } else {
+       fprintf(stderr, "Error: Cannot read watchdog status\n");
+     }
+     sleep(1);
+     n++;
+   } while ((bootstatus & 0x20) == 0);
+   fprintf(stdout, "%2d: status: %04x\n", n, bootstatus);
+   write(fd, "V", 1);
+   close(fd);
+   return 0;
    /* There are two ways to kick the watchdog:
       - by writing any dummy value into watchdog device file, or
       - by using IOCTL WDIOC_KEEPALIVE
